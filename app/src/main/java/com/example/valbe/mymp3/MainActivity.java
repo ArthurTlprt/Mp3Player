@@ -3,6 +3,7 @@ package com.example.valbe.mymp3;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.arch.persistence.room.Room;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
@@ -13,6 +14,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import java.util.ArrayList;
@@ -54,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
 
         songView = (ListView)findViewById(R.id.song_list);
         songList = new ArrayList<Song>();
@@ -172,13 +175,18 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
                 int artistColumn = musicCursor.getColumnIndex
                         (android.provider.MediaStore.Audio.Media.ARTIST);
                 //add songs to list
+                Playlist p = new Playlist();
                 do {
                     long thisId = musicCursor.getLong(idColumn);
                     String thisTitle = musicCursor.getString(titleColumn);
                     String thisArtist = musicCursor.getString(artistColumn);
+                    Log.v("id", ""+thisId);
+                    Song song = new Song(thisId, thisTitle, thisArtist);
+                    //p.songs.add(song);
                     songList.add(new Song(thisId, thisTitle, thisArtist));
                 }
                 while (musicCursor.moveToNext());
+                Log.v("playlist", ""+p.uid);
             }
         }
     }
