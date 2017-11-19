@@ -4,6 +4,8 @@ import android.app.Service;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.IBinder;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import android.content.ContentUris;
 import android.media.AudioManager;
@@ -26,6 +28,12 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     private static final int NOTIFY_ID = 1;
     private boolean shuffle=false;
     private Random rand;
+    public boolean isPrepared = false;
+    public boolean isPaused = false;
+    public int duration;
+    public int musicPosition;
+
+    public MusicController tempController;
 
     public MusicService() {
     }
@@ -35,8 +43,6 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         songPosn = 0;
         player = new MediaPlayer();
         rand = new Random();
-        //AudioManager manager = new AudioManager();
-        //manager.requestAudioFocus();
         initMusicPlayer();
     }
 
@@ -56,7 +62,13 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         songPosn = songIndex;
     }
 
-    public void playSong(){
+    public void setTempController(MusicController tempController){
+        this.tempController = tempController;
+    }
+
+    public void playSong() throws IOException {
+        isPrepared = false;
+        isPaused = false;
         player.reset();
         Song playSong = songs.get(songPosn);
         songTitle = playSong.getTitle();
@@ -68,14 +80,19 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         catch (Exception e){
             Log.e("Music Service", "Error setting data source", e);
         }
+        //player.prepare();
+
         player.prepareAsync();
+        Log.e("Music Service", "Musique has been load");
     }
 
     public int getPosn(){
+        musicPosition = player.getCurrentPosition();
         return player.getCurrentPosition();
     }
 
     public int getDur(){
+        duration = player.getDuration();
         return player.getDuration();
     }
 
@@ -84,7 +101,9 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     }
 
     public void pausePlayer(){
+        isPaused = true;
         player.pause();
+        Log.e("Player Paused", "Player is paused");
     }
 
     public void seek(int posn){
@@ -92,6 +111,8 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     }
 
     public void go(){
+        Log.e("Player play", "Player is playing");
+        isPaused = false;
         player.start();
     }
 
@@ -100,7 +121,11 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         if(songPosn <= 0){
             songPosn=songs.size()-1;
         }
-        playSong();
+        try {
+            playSong();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void playNext(){
@@ -116,7 +141,11 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
                 songPosn=0;
             }
         }
-        playSong();
+        try {
+            playSong();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void setShuffle(){
@@ -156,7 +185,9 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     @Override
     public void onPrepared(MediaPlayer mp) {
-        mp.start();
+        this.go();
+        isPrepared = true;
+        Log.e("Player play", "Player is playing on prepared");
         Intent notIntent = new Intent(this, MainActivity.class);
         notIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendInt = PendingIntent.getActivity(this, 0,
@@ -173,6 +204,8 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         Notification not = builder.build();
 
         startForeground(NOTIFY_ID, not);
+        tempController.show(0);
+
     }
 
     @Override

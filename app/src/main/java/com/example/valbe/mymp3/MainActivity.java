@@ -13,8 +13,11 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -42,10 +45,14 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     private Intent playIntent;
     private boolean musicBound = false;
 
-    private MusicController controller;
+    public MusicController controller;
 
     private boolean paused = false;
     private boolean playbackPause = false;
+
+    private boolean ischecked = true;
+
+
 
     // In te on create, we create the view and we are querying musics from internal database
     @Override
@@ -60,17 +67,21 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
 
         getSongList();
 
-        Collections.sort(songList, new Comparator<Song>() {
-            @Override
-            public int compare(Song o1, Song o2) {
+        if(ischecked){
+            Collections.sort(songList, new Comparator<Song>() {
+                @Override
+                public int compare(Song o1, Song o2) {
                 return o1.getTitle().compareTo(o2.getTitle());
-            }
-        });
+                }
+            });
 
-        SongAdapter songAdt = new SongAdapter(this, songList);
-        songView.setAdapter(songAdt);
+            SongAdapter songAdt = new SongAdapter(this, songList);
+            songView.setAdapter(songAdt);
 
-        setController();
+
+
+            setController();
+        }
     }
 
     @Override
@@ -160,6 +171,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     // Method to query songList, wich ask user permission if this is the first time
     public void getSongList(){
         if (checkPermissionREAD_EXTERNAL_STORAGE(this)) {
+
             ContentResolver musicResolver = getContentResolver();
             Uri musicUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
             Cursor musicCursor = musicResolver.query(musicUri, null, null, null, null);
@@ -180,6 +192,8 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
                 }
                 while (musicCursor.moveToNext());
             }
+        }else{
+            ischecked = false;
         }
     }
 
@@ -193,14 +207,11 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         if (currentAPIVersion >= android.os.Build.VERSION_CODES.M) {
             if (ContextCompat.checkSelfPermission(context,
                     Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                if (ActivityCompat.shouldShowRequestPermissionRationale(
-                        (Activity) context,
-                        Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                if (ActivityCompat.shouldShowRequestPermissionRationale((Activity) context, Manifest.permission.READ_EXTERNAL_STORAGE)) {
                     showDialog("External storage", context, Manifest.permission.READ_EXTERNAL_STORAGE);
-
+                    return false;
                 } else {
-                    ActivityCompat
-                            .requestPermissions(
+                    ActivityCompat.requestPermissions(
                                     (Activity) context,
                                     new String[] { Manifest.permission.READ_EXTERNAL_STORAGE },
                                     MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE);
@@ -234,12 +245,26 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+
         switch (requestCode) {
             case MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE:
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // do your stuff
+
+                    getSongList();
+
+                    Collections.sort(songList, new Comparator<Song>() {
+                        @Override
+                        public int compare(Song o1, Song o2) {
+                            return o1.getTitle().compareTo(o2.getTitle());
+                        }
+                    });
+
+                    SongAdapter songAdt = new SongAdapter(this, songList);
+                    songView.setAdapter(songAdt);
+
+                    setController();
+
                 } else Toast.makeText(this, "GET_ACCOUNTS Denied",
                         Toast.LENGTH_SHORT).show();
                 break;
@@ -252,17 +277,26 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     //Equivalent of onClick for elements of the list
     public void songPicked (View view){
         musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
-        musicSrv.playSong();
+        try {
+            musicSrv.setTempController(controller);
+            musicSrv.playSong();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Log.e("Music Service Main", "Je suis la");
         if(playbackPause){
-            setController();
+            //setController();
             playbackPause = false;
         }
-        controller.show(0);
+
+        //controller.show(0);
+
     }
 
     /*  All those methodes are for control of the music */
     @Override
     public void start() {
+        playbackPause = false;
         musicSrv.go();
     }
 
@@ -274,11 +308,18 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
 
     @Override
     public int getDuration() {
-        if(musicSrv!=null && musicBound && musicSrv.isPng()){
+        if(musicSrv!=null && musicBound && isPlaying()){
+            Log.e("TEST MUSIQUE", "GET DURATION");
+
             return musicSrv.getDur();
         }else{
+            Log.e("TEST MUSIQUE", "NOT GET DURATION");
+            if(musicSrv.isPaused){
+                return musicSrv.duration;
+            }
             return 0;
         }
+
     }
 
     @Override
@@ -286,12 +327,16 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         if(musicSrv!=null && musicBound && musicSrv.isPng()){
             return musicSrv.getPosn();
         }else{
+            if(musicSrv.isPaused == true){
+                return musicSrv.musicPosition;
+            }
             return 0;
         }
     }
 
     @Override
     public void seekTo(int pos) {
+        musicSrv.musicPosition = pos;
         musicSrv.seek(pos);
     }
 
@@ -329,6 +374,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     }
 
     private void setController(){
+        controller = null;
         controller = new MusicController(this);
         controller.setPrevNextListeners(new View.OnClickListener() {
             @Override
@@ -347,20 +393,22 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     }
 
     private void playNext(){
+        musicSrv.setTempController(controller);
         musicSrv.playNext();
         if(playbackPause){
-            setController();
+            //setController();
             playbackPause=false;
         }
-        controller.show(0);
+        //controller.show(0);
     }
 
     private void playPrev(){
+        musicSrv.setTempController(controller);
         musicSrv.playPrev();
         if(playbackPause){
-            setController();
+            //setController();
             playbackPause=false;
         }
-        controller.show(0);
+        //controller.show(0);
     }
 }
