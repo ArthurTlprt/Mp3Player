@@ -3,6 +3,7 @@ package com.example.valbe.mymp3;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.arch.persistence.room.Room;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
@@ -61,6 +62,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
 
         songView = (ListView)findViewById(R.id.song_list);
         songList = new ArrayList<Song>();
@@ -184,13 +186,18 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
                 int artistColumn = musicCursor.getColumnIndex
                         (android.provider.MediaStore.Audio.Media.ARTIST);
                 //add songs to list
+                Playlist p = new Playlist();
                 do {
                     long thisId = musicCursor.getLong(idColumn);
                     String thisTitle = musicCursor.getString(titleColumn);
                     String thisArtist = musicCursor.getString(artistColumn);
+                    Log.v("id", ""+thisId);
+                    Song song = new Song(thisId, thisTitle, thisArtist);
+                    //p.songs.add(song);
                     songList.add(new Song(thisId, thisTitle, thisArtist));
                 }
                 while (musicCursor.moveToNext());
+                Log.v("playlist", ""+p.uid);
             }
         }else{
             ischecked = false;
