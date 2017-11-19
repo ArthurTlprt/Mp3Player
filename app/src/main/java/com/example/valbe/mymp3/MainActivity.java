@@ -3,6 +3,7 @@ package com.example.valbe.mymp3;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.SearchManager;
 import android.arch.persistence.room.Room;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -31,6 +32,7 @@ import android.net.Uri;
 import android.content.ContentResolver;
 import android.database.Cursor;
 import android.widget.ListView;
+import android.widget.SearchView;
 import android.widget.Toast;
 import android.os.IBinder;
 import android.content.ComponentName;
@@ -57,6 +59,8 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     private boolean playbackPause = false;
 
     private boolean ischecked = true;
+
+    SongAdapter songAdt;
 
 
 
@@ -89,12 +93,8 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
                 return o1.getTitle().compareTo(o2.getTitle());
                 }
             });
-
-            SongAdapter songAdt = new SongAdapter(this, songList);
+            songAdt = new SongAdapter(this, songList);
             songView.setAdapter(songAdt);
-
-
-
             setController();
         }
     }
@@ -120,6 +120,45 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+
+        SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
+        MenuItem searchMenuItem = menu.findItem(R.id.search);
+        SearchView searchView = (SearchView) searchMenuItem.getActionView();
+
+        searchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
+        searchView.setSubmitButtonEnabled(true);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                controller.hide();
+                Log.e("Final search","It's me on final");
+                songAdt.getFilter().filter(query);
+                songView.setAdapter(songAdt);
+                musicSrv.setList(songAdt.getSongs());
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                controller.hide();
+                Log.e("Final search","No it's me");
+                songAdt.getFilter().filter(newText);
+                songView.setAdapter(songAdt);
+                musicSrv.setList(songAdt.getSongs());
+                return true;
+            }
+        });
+
+        searchView.setOnCloseListener(new SearchView.OnCloseListener() {
+            @Override
+            public boolean onClose() {
+                songAdt.setInitSongList(songList);
+                songView.setAdapter(songAdt);
+                musicSrv.setList(songAdt.getSongs());
+                return false;
+            }
+        });
+
         return true;
     }
 
@@ -134,11 +173,9 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
             case R.id.action_shuffle:
                 musicSrv.setShuffle();
                 break;
-            /*case R.id.action_end:
-                stopService(playIntent);
-                musicSrv=null;
-                System.exit(0);
-                break;*/
+            case R.id.search:
+                controller.hide();
+                break;
         }
 
         return super.onOptionsItemSelected(item);
@@ -297,7 +334,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
                         }
                     });
 
-                    SongAdapter songAdt = new SongAdapter(this, songList);
+                    songAdt = new SongAdapter(this, songList);
                     songView.setAdapter(songAdt);
 
                     setController();
@@ -313,6 +350,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
 
     //Equivalent of onClick for elements of the list
     public void songPicked (View view){
+        Log.e("Test Search", view.getTag().toString());
         musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
         try {
             musicSrv.setTempController(controller);
@@ -425,7 +463,8 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
             }
         });
         controller.setMediaPlayer(this);
-        controller.setAnchorView(findViewById(R.id.song_list));
+        controller.setAnchorView(findViewById(R.id.drawer_layout));
+        //controller.setAnchorView(findViewById(R.id.song_list));
         controller.setEnabled(true);
     }
 
