@@ -4,6 +4,7 @@ import android.arch.persistence.room.Room;
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
+import android.util.Log;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,7 +35,37 @@ public class ExampleInstrumentedTest {
         AppDatabase db = Room.databaseBuilder(appContext,
                 AppDatabase.class, "database-name").build();
 
+        Playlist party = new Playlist();
+        party.name = "party";
+
+        db.PlaylistDao().insert(party);
         List<Playlist> p = db.PlaylistDao().getAll();
 
+        assertEquals("party", p.get(0).name);
+
+    }
+
+    @Test
+    public void UseRelation() throws Exception{
+        Context appContext = InstrumentationRegistry.getTargetContext();
+
+        AppDatabase db = Room.databaseBuilder(appContext,
+                AppDatabase.class, "Mp3Player").build();
+
+        Playlist party = new Playlist();
+        party.name = "party";
+        db.PlaylistDao().insert(party);
+
+        Song hit = new Song(2, "Bob Mauranne", "Indochine");
+        db.SongDao().insert(hit);
+
+        PlaylistSong ps = new PlaylistSong();
+        ps.playlistId = party.id;
+        ps.songId = hit.id;
+        db.PlaylistSongDao().add(ps);
+
+        List<Song> songs = db.PlaylistSongDao().getPlaylistSong(party.id);
+
+        assertEquals("Indochine", songs.get(2).getArtist());
     }
 }
